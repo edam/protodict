@@ -167,7 +167,12 @@ def _dict_to_protobuf(pb, value, type_callable_map, strict):
         if field.type == FieldDescriptor.TYPE_ENUM and isinstance(input_value, six.string_types):
             input_value = _string_to_enum(field, input_value)
 
-        if input_value is not None:
+        if input_value is None:
+            try:
+                delattr(pb, field.name)
+            except AttributeError:
+                pass
+        else:
             setattr(pb, field.name, input_value)
 
     return pb
