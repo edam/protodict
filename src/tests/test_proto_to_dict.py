@@ -175,3 +175,11 @@ class TestRequiredOfOptional(unittest.TestCase):
             pb.SerializeToString()
         except EncodeError as e:
             self.fail('{0}'.format(e.message))
+
+    def test_null_field(self):
+        d = {'opt': 'hi'}
+        pb = to_protobuf(MessageOneOptional, d)
+        assert(pb.opt == 'hi')
+        d = {'opt': None}
+        pb = to_protobuf(MessageOneOptional, d)
+        assert(not pb.opt)
