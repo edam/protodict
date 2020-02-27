@@ -180,6 +180,8 @@ class TestRequiredOfOptional(unittest.TestCase):
         d = {'opt': 'hi'}
         pb = to_protobuf(MessageOneOptional, d)
         assert(pb.opt == 'hi')
+        assert(pb.HasField('opt'))
         d = {'opt': None}
-        pb = to_protobuf(MessageOneOptional, d)
+        pb = to_protobuf(pb, d)
         assert(not pb.opt)
+        assert(not pb.HasField('opt'))

@@ -168,10 +168,7 @@ def _dict_to_protobuf(pb, value, type_callable_map, strict):
             input_value = _string_to_enum(field, input_value)
 
         if input_value is None:
-            try:
-                delattr(pb, field.name)
-            except AttributeError:
-                pass
+            pb.ClearField(field.name)
         else:
             setattr(pb, field.name, input_value)
 
