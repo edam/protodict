@@ -1,19 +1,26 @@
 import six
 from google.protobuf.message import Message
 from google.protobuf.descriptor import FieldDescriptor
+from copy import copy
 
 
-__all__ = ["to_dict", "TYPE_CALLABLE_MAP", "to_protobuf", "REVERSE_TYPE_CALLABLE_MAP"]
+__all__ = [
+    "to_dict",
+    "TYPE_CALLABLE_MAP",
+    "to_protobuf",
+    "REVERSE_TYPE_CALLABLE_MAP"
+]
 
 
 EXTENSION_CONTAINER = '___X'
 
 if six.PY2:
     _long = long
+    _bytes = str
 else:
     import base64
-
     _long = int
+    _bytes = bytes
 
 
 TYPE_CALLABLE_MAP = {
@@ -31,26 +38,37 @@ TYPE_CALLABLE_MAP = {
     FieldDescriptor.TYPE_SFIXED64: _long,
     FieldDescriptor.TYPE_BOOL: bool,
     FieldDescriptor.TYPE_STRING: six.text_type,
-    FieldDescriptor.TYPE_BYTES: (lambda b: b.encode("base64")) if six.PY2 else base64.b64encode,
+    FieldDescriptor.TYPE_BYTES: _bytes,
     FieldDescriptor.TYPE_ENUM: int,
 }
 
 
-def repeated(type_callable):
+def _repeated(type_callable):
     return lambda value_list: [type_callable(value) for value in value_list]
 
 
-def enum_label_name(field, value):
+def _enum_label_name(field, value):
     return field.enum_type.values_by_number[int(value)].name
 
 
-def to_dict(pb, type_callable_map=TYPE_CALLABLE_MAP, use_enum_labels=False):
+def _dec_bytes(value):
+    return value.decode('base64') if six.PY2 else base64.b64decode(value)
+
+
+def _enc_bytes(value):
+    return value.encode("base64") if six.PY2 else base64.b64encode(value)
+
+
+def to_dict(pb, type_callable_map=TYPE_CALLABLE_MAP, use_enum_labels=False, base64_bytes = False):
     result_dict = {}
     extensions = {}
+    if base64_bytes:
+        type_callable_map = copy(type_callable_map)
+        type_callable_map[FieldDescriptor.TYPE_BYTES] = _enc_bytes
     for field, value in pb.ListFields():
         type_callable = _get_field_value_adaptor(pb, field, type_callable_map, use_enum_labels)
         if field.label == FieldDescriptor.LABEL_REPEATED:
-            type_callable = repeated(type_callable)
+            type_callable = _repeated(type_callable)
 
         if field.is_extension:
             extensions[str(field.number)] = type_callable(value)
@@ -71,7 +89,7 @@ def _get_field_value_adaptor(pb, field, type_callable_map=TYPE_CALLABLE_MAP, use
             use_enum_labels=use_enum_labels)
 
     if use_enum_labels and field.type == FieldDescriptor.TYPE_ENUM:
-        return lambda value: enum_label_name(field, value)
+        return lambda value: _enum_label_name(field, value)
 
     if field.type in type_callable_map:
         return type_callable_map[field.type]
@@ -80,16 +98,10 @@ def _get_field_value_adaptor(pb, field, type_callable_map=TYPE_CALLABLE_MAP, use
         pb.__class__.__name__, field.name, field.type))
 
 
-def get_bytes(value):
-    return value.decode('base64') if six.PY2 else base64.b64decode(value)
+REVERSE_TYPE_CALLABLE_MAP = {}
 
 
-REVERSE_TYPE_CALLABLE_MAP = {
-    FieldDescriptor.TYPE_BYTES: get_bytes,
-}
-
-
-def to_protobuf(pb_klass_or_instance, values, type_callable_map=REVERSE_TYPE_CALLABLE_MAP, strict=True):
+def to_protobuf(pb_klass_or_instance, values, type_callable_map=REVERSE_TYPE_CALLABLE_MAP, strict=True, base64_bytes = False):
     """Populates a protobuf model from a dictionary.
 
     :param pb_klass_or_instance: a protobuf message class, or an protobuf instance
@@ -104,6 +116,9 @@ def to_protobuf(pb_klass_or_instance, values, type_callable_map=REVERSE_TYPE_CAL
         instance = pb_klass_or_instance
     else:
         instance = pb_klass_or_instance()
+    if base64_bytes:
+        type_callable_map = copy(type_callable_map)
+        type_callable_map[FieldDescriptor.TYPE_BYTES] = _dec_bytes
     return _dict_to_protobuf(instance, values, type_callable_map, strict)
 
 

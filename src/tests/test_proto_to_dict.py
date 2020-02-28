@@ -97,6 +97,14 @@ class Test(unittest.TestCase):
         m2 = to_protobuf(MessageOfTypes, d, strict=False)
         assert m == m2
 
+    def test_base64_bytes(self):
+        m = self.populate_MessageOfTypes()
+        d = to_dict(m, base64_bytes = True)
+        self.compare(m, d, ['nestedRepeated'], base64_bytes = True)
+
+        m2 = to_protobuf(MessageOfTypes, d, base64_bytes = True)
+        assert m == m2
+
     def populate_MessageOfTypes(self):
         m = MessageOfTypes()
         m.dubl = 1.7e+308
@@ -121,7 +129,7 @@ class Test(unittest.TestCase):
         m.range.extend(range(10))
         return m
 
-    def compare(self, m, d, exclude=None):
+    def compare(self, m, d, exclude = None, base64_bytes = False):
         i = 0
         exclude = ['byts', 'nested'] + (exclude or [])
         for i, field in enumerate(MessageOfTypes.DESCRIPTOR.fields): #@UndefinedVariable
@@ -129,7 +137,10 @@ class Test(unittest.TestCase):
                 assert field.name in d, field.name
                 assert d[field.name] == getattr(m, field.name), (field.name, d[field.name])
         assert i > 0
-        assert m.byts == base64.b64decode(d['byts'])
+        if base64_bytes:
+            assert m.byts == base64.b64decode(d['byts'])
+        else:
+            assert m.byts == d['byts']
         assert d['nested'] == {'req': m.nested.req}
 
     def test_extensions(self):
