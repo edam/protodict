@@ -26,28 +26,23 @@ Given the `google.protobuf.message.Message` subclass `MyMessage`:
 
 ## Caveats
 
+### Base64 encoded `bytes`
+
 This library grew out of the desire to serialize a protobuf-encoded message to
 [JSON](http://json.org/). As JSON has no built-in binary type (all strings in
-JSON are Unicode strings), any field whose type is
-`FieldDescriptor.TYPE_BYTES` is, by default, converted to a base64-encoded
-string.
+JSON are Unicode strings), a field whose type is `FieldDescriptor.TYPE_BYTES`
+should be converted to a base64-encoded string.
 
-If you want to override this behaviour, you may do so by passing
-`protobuf_to_dict` a dictionary of protobuf types to callables via the
-`type_callable_map` kwarg:
+If you want to encode bytes is this way, both `to_dict()` and `to_protobuf()`
+take an optional `base64_bytes` argument:
 
 ```python
->>> from copy import copy
->>> from google.protobuf.descriptor import FieldDescriptor
->>> from protodict import to_dict, TYPE_CALLABLE_MAP
->>>
->>> type_callable_map = copy(TYPE_CALLABLE_MAP)
->>> # convert TYPE_BYTES to a Python bytestring
->>> type_callable_map[FieldDescriptor.TYPE_BYTES] = str
->>>
 >>> # my_message is a google.protobuf.message.Message instance
->>> to_dict(my_message, type_callable_map=type_callable_map)
+>>> my_dict = to_dict(my_message, base64_bytes = True)
+>>> to_protobuf(my_dict, base64_bytes = True)
 ```
+
+### `int` vs. `str` enums
 
 By default, the integer representation is used for enum values. To use their
 string labels instead, pass `use_enum_labels=True` into `to_dict`:
