@@ -138,7 +138,17 @@ def _get_field_mapping(pb, dict_value, strict):
 def _dict_to_protobuf(pb, value, type_callable_map, strict):
     fields = _get_field_mapping(pb, value, strict)
 
+    # process None-values first, so that, for oneofs, they don't later clear an
+    # alternate, valid assignment
     for field, input_value, pb_value in fields:
+        if input_value is None:
+            pb.ClearField(field.name)
+
+    for field, input_value, pb_value in fields:
+
+        if input_value is None:
+            continue
+
         if field.label == FieldDescriptor.LABEL_REPEATED:
             for item in input_value:
                 if field.type in (FieldDescriptor.TYPE_MESSAGE, FieldDescriptor.TYPE_GROUP):
@@ -149,6 +159,7 @@ def _dict_to_protobuf(pb, value, type_callable_map, strict):
                 else:
                     pb_value.append(item)
             continue
+
         if field.type in (FieldDescriptor.TYPE_MESSAGE, FieldDescriptor.TYPE_GROUP):
             if input_value:
                 _dict_to_protobuf(pb_value, input_value, type_callable_map, strict)
@@ -167,10 +178,7 @@ def _dict_to_protobuf(pb, value, type_callable_map, strict):
         if field.type == FieldDescriptor.TYPE_ENUM and isinstance(input_value, six.string_types):
             input_value = _string_to_enum(field, input_value)
 
-        if input_value is None:
-            pb.ClearField(field.name)
-        else:
-            setattr(pb, field.name, input_value)
+        setattr(pb, field.name, input_value)
 
     return pb
 
